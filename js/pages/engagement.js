@@ -16,13 +16,13 @@ import { createEngagementChart } from '../charts.js';
 
 let currentChart = null;
 
-export function renderEngagementPage() {
+export async function renderEngagementPage() {
     const user = getCurrentUser();
     const canRate = canEvaluate();
     const users = getUsers();
     const currentWeek = getCurrentWeekStart();
     const ratings = getRatingsByWeek(currentWeek);
-    const summary = getEngagementSummary(currentWeek);
+    const summary = await getEngagementSummary(currentWeek);
     const missingRatings = getTotalMissingRatings(currentWeek);
 
     return `
@@ -137,32 +137,31 @@ export function renderEngagementPage() {
         </div>
     `;
 }
-
 export function initEngagementPage() {
     const form = document.getElementById('engagementForm');
     const user = getCurrentUser();
 
     if (form) {
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             const currentWeek = getCurrentWeekStart();
             const inputs = form.querySelectorAll('input[data-evaluated-id]');
 
-            inputs.forEach(input => {
-                const evaluatedId = parseInt(input.dataset.evaluatedId);
+            // ✅ ВАЖНО: используем for...of, чтобы можно было await
+            for (const input of inputs) {
+                const evaluatedId = parseInt(input.dataset.evaluatedId, 10);
                 const rating = Math.max(0, Math.min(100, Number(input.value)));
 
                 if (!Number.isNaN(rating)) {
-
-                    saveRating({
+                    await saveRating({
                         weekStartDate: currentWeek,
                         evaluatorId: user.id,
                         evaluatedId: evaluatedId,
                         rating: rating
                     });
                 }
-            });
+            }
 
             alert('Оценки успешно сохранены!');
             window.location.reload();
@@ -170,16 +169,18 @@ export function initEngagementPage() {
     }
 
     // Create engagement chart with historical data
-    const weeks = getWeeksList(8);
-    const users = getUsers();
-    const weeklyData = {};
+    (async () => {
+        const weeks = getWeeksList(8);
+        const users = getUsers();
+        const weeklyData = {};
 
-    weeks.forEach(week => {
-        weeklyData[week] = getEngagementSummary(week);
-    });
+        for (const week of weeks) {
+            weeklyData[week] = await getEngagementSummary(week);
+        }
 
-    if (currentChart) {
-        currentChart.destroy();
-    }
-    currentChart = createEngagementChart('engagementChart', weeklyData, users);
+        if (currentChart) {
+            currentChart.destroy();
+        }
+        currentChart = createEngagementChart('engagementChart', weeklyData, users);
+    })();
 }
