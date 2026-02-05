@@ -26,14 +26,16 @@ export function renderLoginPage() {
 }
 
 export function initLoginPage() {
-    const userButtons = document.querySelectorAll('.user-btn');
+    document.addEventListener("click", (e) => {
+        const btn = e.target.closest(".user-btn");
+        if (!btn) return;
 
-    userButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const userId = parseInt(btn.dataset.userId);
-            if (login(userId)) {
-                navigate('dashboard');
-            }
-        });
+        const userId = Number(btn.getAttribute("data-user-id"));
+        if (!userId) return;
+
+        const ok = login(userId);
+        if (ok) {
+            navigate("dashboard");
+        }
     });
 }
