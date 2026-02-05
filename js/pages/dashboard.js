@@ -10,20 +10,27 @@ import {
     formatMonth
 } from '../data.js';
 
-export function renderDashboardPage() {
+export async function renderDashboardPage() {
     const user = getCurrentUser();
-    const weeklyMetrics = getWeeklyMetrics();
-    const monthlyMetrics = getMonthlyMetrics();
-    const currentWeek = getCurrentWeekStart();
-    const missingRatings = getTotalMissingRatings(currentWeek);
+    const weeklyMetrics = await getWeeklyMetrics();
+    const monthlyMetrics = await getMonthlyMetrics();
+    const currentWeek = await getCurrentWeekStart();
+    const missingRatings = await getTotalMissingRatings(currentWeek);
 
     const latestWeekly = weeklyMetrics.length > 0
-        ? weeklyMetrics[weeklyMetrics.length - 1]
+        ? weeklyMetrics
+            .slice()
+            .sort((a, b) => String(a.weekStartDate || '').localeCompare(String(b.weekStartDate || '')))
+            .at(-1)
         : null;
 
     const latestMonthly = monthlyMetrics.length > 0
-        ? monthlyMetrics[monthlyMetrics.length - 1]
+        ? monthlyMetrics
+            .slice()
+            .sort((a, b) => String(a.monthDate || '').localeCompare(String(b.monthDate || '')))
+            .at(-1)
         : null;
+
 
     return `
         <div class="fade-in">
