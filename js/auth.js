@@ -1,3 +1,5 @@
+import { getUsers } from "./data.js";
+
 // Authentication Module
 // Simple authentication using localStorage
 
