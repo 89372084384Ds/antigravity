@@ -1,4 +1,3 @@
-// js/app.js
 // Main Application Entry Point
 
 import { initializeData } from './data.js';
@@ -22,49 +21,44 @@ const pages = {
     statistics: { render: renderStatisticsPage, init: initStatisticsPage },
 };
 
+// Render current page
 async function renderPage(route) {
     const appEl = document.getElementById('app');
     const navbar = document.getElementById('navbar');
     const currentUserSpan = document.getElementById('currentUser');
 
-    try {
-        // Показать/скрыть меню
-        if (isLoggedIn() && route !== 'login') {
-            navbar.classList.remove('hidden');
-            const user = getCurrentUser();
-            currentUserSpan.textContent = user ? user.name : '';
-        } else {
-            navbar.classList.add('hidden');
-            currentUserSpan.textContent = '';
-        }
+    // safety
+    if (!appEl) return;
 
-        const page = pages[route] || pages.login;
-
-        // ВАЖНО: render() теперь может быть async → await
-        const html = await page.render();
-        appEl.innerHTML = html;
-
-        // init() тоже может быть async → await
-        if (page.init) await page.init();
-
-        updateActiveNavLink();
-    } catch (err) {
-        console.error('Render error:', err);
-        appEl.innerHTML = `
-      <div class="card">
-        <h2 class="card-title">Ошибка</h2>
-        <p class="text-muted">Открой Console (F12) и пришли ошибку.</p>
-        <pre style="white-space: pre-wrap;">${String(err?.stack || err)}</pre>
-      </div>
-    `;
+    // Show/hide navbar
+    if (isLoggedIn() && route !== 'login') {
+        navbar?.classList.remove('hidden');
+        const user = getCurrentUser();
+        if (currentUserSpan && user) currentUserSpan.textContent = user.name;
+    } else {
+        navbar?.classList.add('hidden');
     }
+
+    const page = pages[route] || pages.login;
+
+    // ✅ render может быть async -> ждём
+    const html = await page.render();
+    appEl.innerHTML = html;
+
+    // ✅ init тоже может быть async -> ждём
+    if (typeof page.init === 'function') {
+        await page.init();
+    }
+
+    updateActiveNavLink();
 }
 
+// Initialize app
 function init() {
-    initializeData(); // теперь "пустышка" — ок
+    initializeData(); // сейчас "пустышка", но пусть будет
     initAuth();
 
-    // logout
+    // Logout
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
@@ -73,14 +67,16 @@ function init() {
         });
     }
 
-    // слушаем событие от router.js
+    // Listen for route changes
     window.addEventListener('routechange', async (e) => {
         await renderPage(e.detail.route);
     });
 
-    initRouter(); // сам вызовет navigate(initialRoute)
+    // Initialize router
+    initRouter();
 }
 
+// Start
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
