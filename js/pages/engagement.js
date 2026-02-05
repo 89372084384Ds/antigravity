@@ -51,7 +51,11 @@ export async function renderEngagementPage() {
             return '';
         }
 
-        const existingRating = getRating(currentWeek, user.id, evaluatedUser.id);
+        const existingRating = ratings.find(r =>
+            Number(r.evaluatorId) === user.id &&
+            Number(r.evaluatedId) === evaluatedUser.id
+        );
+
         const isSelf = evaluatedUser.id === user.id;
 
         return `

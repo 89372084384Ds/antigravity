@@ -21,7 +21,8 @@ const pages = {
 };
 
 // Render current page
-function renderPage(route) {
+async function renderPage(route) {
+
     const app = document.getElementById('app');
     const navbar = document.getElementById('navbar');
     const currentUserSpan = document.getElementById('currentUser');
@@ -37,8 +38,9 @@ function renderPage(route) {
 
     // Render page
     const page = pages[route] || pages.login;
-    app.innerHTML = page.render();
-    page.init();
+    aapp.innerHTML = await page.render();
+    await page.init();
+
 
     // Update active nav link
     updateActiveNavLink();
@@ -58,9 +60,10 @@ function init() {
     });
 
     // Listen for route changes
-    window.addEventListener('routechange', (e) => {
-        renderPage(e.detail.route);
+    window.addEventListener('routechange', async (e) => {
+        await renderPage(e.detail.route);
     });
+
 
     // Initialize router
     initRouter();
