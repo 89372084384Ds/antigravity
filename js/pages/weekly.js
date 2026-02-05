@@ -2,154 +2,98 @@
 
 import { getCurrentUser, canInputWeeklyMetrics } from '../auth.js';
 import {
-    getWeeklyMetrics,
-    getWeeklyMetricByDate,
-    saveWeeklyMetric,
     getCurrentWeekStart,
-    getWeeksList,
-    formatDate
+    formatDate,
+    getWeeklyMetricByDate,
+    saveWeeklyMetric
 } from '../data.js';
-import { createWeeklyMetricsChart } from '../charts.js';
 
-let currentChart = null;
-
-export function renderWeeklyPage() {
+export async function renderWeeklyPage() {
     const user = getCurrentUser();
     const canInput = canInputWeeklyMetrics();
-    const weeklyMetrics = getWeeklyMetrics();
-    const currentWeek = getCurrentWeekStart();
-    const currentMetric = getWeeklyMetricByDate(currentWeek);
-    const weeks = getWeeksList();
+    const weekStart = getCurrentWeekStart();
+
+    // ✅ важно: это async из Firebase
+    const existing = await getWeeklyMetricByDate(weekStart);
 
     return `
-        <div class="fade-in">
-            <div class="card mb-4">
-                <h1 class="card-title">Еженедельные показатели</h1>
-                <p class="card-subtitle">Ввод и просмотр еженедельных метрик</p>
-            </div>
-            
-            ${canInput ? `
-                <div class="card mb-4">
-                    <h3 class="card-title">Ввод показателей</h3>
-                    <p class="card-subtitle mb-3">Неделя: ${formatDate(currentWeek)}</p>
-                    
-                    <form id="weeklyForm">
-                        ${user.name === 'Павел' ? `
-                            <div class="form-group">
-                                <label class="form-label">Количество сделок в переговорах</label>
-                                <input type="number" class="form-input" id="dealsInNegotiation" 
-                                    value="${currentMetric?.dealsInNegotiation || ''}" min="0" required>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Количество покупателей</label>
-                                <input type="number" class="form-input" id="buyersCount" 
-                                    value="${currentMetric?.buyersCount || ''}" min="0" required>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Количество поставщиков</label>
-                                <input type="number" class="form-input" id="suppliersCount" 
-                                    value="${currentMetric?.suppliersCount || ''}" min="0" required>
-                            </div>
-                        ` : ''}
-                        
-                        ${user.name === 'Дарья' ? `
-                            <div class="form-group">
-                                <label class="form-label">Количество обработанных лидов</label>
-                                <input type="number" class="form-input" id="leadsProcessed" 
-                                    value="${currentMetric?.leadsProcessed || ''}" min="0" required>
-                            </div>
-                        ` : ''}
-                        
-                        <button type="submit" class="btn btn-primary">Сохранить</button>
-                    </form>
-                </div>
-            ` : ''}
-            
-            <div class="card mb-4">
-                <h3 class="card-title">История показателей</h3>
-                
-                ${weeklyMetrics.length > 0 ? `
-                    <div class="table-container mt-3">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Неделя</th>
-                                    <th>Сделки</th>
-                                    <th>Покупатели</th>
-                                    <th>Поставщики</th>
-                                    <th>Лиды</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${weeklyMetrics.slice().reverse().map(metric => `
-                                    <tr>
-                                        <td>${formatDate(metric.weekStartDate)}</td>
-                                        <td>${metric.dealsInNegotiation || '—'}</td>
-                                        <td>${metric.buyersCount || '—'}</td>
-                                        <td>${metric.suppliersCount || '—'}</td>
-                                        <td>${metric.leadsProcessed || '—'}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                ` : '<p class="text-muted mt-3">Нет данных для отображения</p>'}
-            </div>
-            
-            ${weeklyMetrics.length > 0 ? `
-                <div class="card">
-                    <h3 class="card-title">График динамики</h3>
-                    <div class="chart-container">
-                        <canvas id="weeklyChart"></canvas>
-                    </div>
-                </div>
-            ` : ''}
+    <div class="fade-in">
+      <div class="card mb-4">
+        <h1 class="card-title">Еженедельные показатели</h1>
+        <p class="card-subtitle">Неделя: ${formatDate(weekStart)}</p>
+      </div>
+
+      ${!canInput ? `
+        <div class="alert alert-info mb-4">
+          Ввод доступен только Павлу и Дарье.
         </div>
-    `;
+      ` : `
+        <div class="card">
+          <h3 class="card-title">Ввести данные</h3>
+
+          <form id="weeklyForm">
+            <div class="grid grid-2">
+              <div class="form-group">
+                <label class="form-label" for="leadsCount">Лиды</label>
+                <input id="leadsCount" class="form-input" type="number" min="0" step="1"
+                       value="${existing?.leadsCount ?? ''}" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="dealsCount">Сделки</label>
+                <input id="dealsCount" class="form-input" type="number" min="0" step="1"
+                       value="${existing?.dealsCount ?? ''}" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="mp">MP</label>
+                <input id="mp" class="form-input" type="number" min="0" step="0.01"
+                       value="${existing?.mp ?? ''}" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="tonsCount">Тонны</label>
+                <input id="tonsCount" class="form-input" type="number" min="0" step="0.01"
+                       value="${existing?.tonsCount ?? ''}" />
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary mt-3">Сохранить</button>
+          </form>
+        </div>
+      `}
+    </div>
+  `;
 }
 
-export function initWeeklyPage() {
+export async function initWeeklyPage() {
     const form = document.getElementById('weeklyForm');
     const user = getCurrentUser();
+    if (!form) return;
 
-    if (form) {
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-            const currentWeek = getCurrentWeekStart();
-            const existingMetric = getWeeklyMetricByDate(currentWeek) || {};
+        try {
+            const weekStartDate = getCurrentWeekStart();
 
             const metric = {
-                weekStartDate: currentWeek,
-                ...existingMetric
+                weekStartDate,
+                userId: user?.id ?? null,
+                leadsCount: Number(document.getElementById('leadsCount').value || 0),
+                dealsCount: Number(document.getElementById('dealsCount').value || 0),
+                mp: Number(document.getElementById('mp').value || 0),
+                tonsCount: Number(document.getElementById('tonsCount').value || 0)
             };
 
-            if (user.name === 'Павел') {
-                metric.dealsInNegotiation = parseInt(document.getElementById('dealsInNegotiation').value);
-                metric.buyersCount = parseInt(document.getElementById('buyersCount').value);
-                metric.suppliersCount = parseInt(document.getElementById('suppliersCount').value);
-            }
+            // ✅ важно: await
+            await saveWeeklyMetric(metric);
 
-            if (user.name === 'Дарья') {
-                metric.leadsProcessed = parseInt(document.getElementById('leadsProcessed').value);
-            }
-
-            saveWeeklyMetric(metric);
-
-            // Show success message and reload
-            alert('Данные успешно сохранены!');
+            alert('Еженедельные данные сохранены!');
             window.location.reload();
-        });
-    }
-
-    // Create chart
-    const weeklyMetrics = getWeeklyMetrics();
-    if (weeklyMetrics.length > 0) {
-        if (currentChart) {
-            currentChart.destroy();
+        } catch (err) {
+            console.error(err);
+            alert('Ошибка сохранения. Открой Console (F12) и пришли ошибку.');
         }
-        currentChart = createWeeklyMetricsChart('weeklyChart', weeklyMetrics);
-    }
+    });
 }

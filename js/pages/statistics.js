@@ -1,18 +1,12 @@
 // Statistics Page
 
-import { getUsers, getWeeklyMetrics, getMonthlyMetrics, exportData } from '../data.js';
+import { getUsers, getWeeksList, getEngagementSummary, exportData } from '../data.js';
 import { createEngagementChart } from '../charts.js';
 
 let statsChart = null;
 
 export async function renderStatisticsPage() {
-    // ✅ ждём данные из Firebase
-    const weeklyMetrics = await getWeeklyMetrics();
-    const monthlyMetrics = await getMonthlyMetrics();
     const users = getUsers();
-
-    const totalWeeks = Array.isArray(weeklyMetrics) ? weeklyMetrics.length : 0;
-    const totalMonths = Array.isArray(monthlyMetrics) ? monthlyMetrics.length : 0;
 
     return `
     <div class="fade-in">
@@ -21,21 +15,19 @@ export async function renderStatisticsPage() {
           <h1 class="card-title">Статистика и отчеты</h1>
           <p class="card-subtitle">Сводная информация по всем показателям</p>
         </div>
-        <button id="exportBtn" class="btn btn-secondary">
-          ⬇ Экспорт данных
-        </button>
+        <button id="exportBtn" class="btn btn-secondary">⬇ Экспорт данных</button>
       </div>
 
       <div class="grid grid-3 mb-4">
         <div class="card">
           <div class="text-muted">ВСЕГО НЕДЕЛЬ</div>
-          <div style="font-size:2.2rem; font-weight:700;">${totalWeeks}</div>
+          <div id="totalWeeks" style="font-size:2.2rem; font-weight:700;">—</div>
           <div class="text-muted">Записей</div>
         </div>
 
         <div class="card">
           <div class="text-muted">ВСЕГО МЕСЯЦЕВ</div>
-          <div style="font-size:2.2rem; font-weight:700;">${totalMonths}</div>
+          <div id="totalMonths" style="font-size:2.2rem; font-weight:700;">—</div>
           <div class="text-muted">Записей</div>
         </div>
 
@@ -57,12 +49,11 @@ export async function renderStatisticsPage() {
 }
 
 export async function initStatisticsPage() {
-    // Export button
+    // Export
     const exportBtn = document.getElementById('exportBtn');
     if (exportBtn) {
         exportBtn.addEventListener('click', async () => {
             const data = await exportData();
-
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
 
@@ -72,17 +63,31 @@ export async function initStatisticsPage() {
             document.body.appendChild(a);
             a.click();
             a.remove();
-
             URL.revokeObjectURL(url);
         });
     }
 
-    // Chart (если у тебя weeklyData для него уже есть — можно подключить позже)
-    // Сейчас не строим, чтобы точно не падало
-    const canvas = document.getElementById('statsEngagementChart');
-    if (canvas) {
-        // оставляем пустым (без ошибок)
-        if (statsChart) statsChart.destroy();
-        // если хочешь — я добавлю сюда сбор данных по неделям для графика
-    }
+    // ✅ Данные графика вовлечённости (8 недель)
+    const weeks = getWeeksList(8);
+    const users = getUsers();
+
+    // ✅ важное: получаем summary по каждой неделе и ждём
+    const entries = await Promise.all(
+        weeks.map(async (week) => {
+            const summary = await getEngagementSummary(week);
+            return [week, summary];
+        })
+    );
+
+    const weeklyData = Object.fromEntries(entries);
+
+    // Показать счётчики
+    const totalWeeksEl = document.getElementById('totalWeeks');
+    const totalMonthsEl = document.getElementById('totalMonths');
+    if (totalWeeksEl) totalWeeksEl.textContent = String(weeks.length);
+    if (totalMonthsEl) totalMonthsEl.textContent = '—'; // если нужно — добавим из monthlyMetrics
+
+    // Chart
+    if (statsChart) statsChart.destroy();
+    statsChart = createEngagementChart('statsEngagementChart', weeklyData, users);
 }

@@ -1,25 +1,26 @@
-// js/auth.js
 // Authentication Module
-// Храним ТОЛЬКО currentUser в localStorage (чтобы не логиниться заново после обновления)
+// Логин сохраняем в localStorage (это НЕ данные метрик, это только "кто вошёл")
 
-import { getUserById } from './data.js';
+import { getUsers, getUserById } from './data.js';
 
 let currentUser = null;
 
 // Initialize auth
 export function initAuth() {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
+    const savedUserId = localStorage.getItem('currentUserId');
+    if (savedUserId) {
+        const id = Number(savedUserId);
+        const user = getUserById(id);
+        if (user) currentUser = user;
     }
 }
 
 // Login user
 export function login(userId) {
-    const user = getUserById(userId);
+    const user = getUserById(Number(userId));
     if (user) {
         currentUser = user;
-        localStorage.setItem('currentUser', JSON.stringify(user));
+        localStorage.setItem('currentUserId', String(user.id));
         return true;
     }
     return false;
@@ -28,7 +29,7 @@ export function login(userId) {
 // Logout user
 export function logout() {
     currentUser = null;
-    localStorage.removeItem('currentUser');
+    localStorage.removeItem('currentUserId');
 }
 
 // Get current user
@@ -41,22 +42,25 @@ export function isLoggedIn() {
     return currentUser !== null;
 }
 
-// Permissions
+// Weekly metrics can input (Павел или Дарья)
 export function canInputWeeklyMetrics() {
     if (!currentUser) return false;
     return currentUser.name === 'Павел' || currentUser.name === 'Дарья';
 }
 
+// Monthly metrics (Венера)
 export function canInputMonthlyMetrics() {
     if (!currentUser) return false;
     return currentUser.name === 'Венера';
 }
 
+// Engagement evaluate
 export function canEvaluate() {
     if (!currentUser) return false;
     return currentUser.canEvaluate === true;
 }
 
+// Self evaluate
 export function canSelfEvaluate() {
     if (!currentUser) return false;
     return currentUser.canSelfEvaluate === true;
