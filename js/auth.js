@@ -13,16 +13,17 @@ export function initAuth() {
 
 // Login user
 export function login(userId) {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const users = getUsers(); // 👈 берём USERS из data.js
     const user = users.find(u => u.id === userId);
 
     if (user) {
         currentUser = user;
-        localStorage.setItem('currentUser', JSON.stringify(user));
+        localStorage.setItem('currentUser', JSON.stringify(user)); // запоминаем вход
         return true;
     }
     return false;
 }
+
 
 // Logout user
 export function logout() {
