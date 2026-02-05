@@ -1,7 +1,8 @@
-import { getUsers } from "./data.js";
-
+// js/auth.js
 // Authentication Module
-// Simple authentication using localStorage
+// Храним ТОЛЬКО currentUser в localStorage (чтобы не логиниться заново после обновления)
+
+import { getUserById } from './data.js';
 
 let currentUser = null;
 
@@ -15,17 +16,14 @@ export function initAuth() {
 
 // Login user
 export function login(userId) {
-    const users = getUsers(); // 👈 берём USERS из data.js
-    const user = users.find(u => u.id === userId);
-
+    const user = getUserById(userId);
     if (user) {
         currentUser = user;
-        localStorage.setItem('currentUser', JSON.stringify(user)); // запоминаем вход
+        localStorage.setItem('currentUser', JSON.stringify(user));
         return true;
     }
     return false;
 }
-
 
 // Logout user
 export function logout() {
@@ -43,25 +41,22 @@ export function isLoggedIn() {
     return currentUser !== null;
 }
 
-// Check if current user can input weekly metrics (Pavel or Darya)
+// Permissions
 export function canInputWeeklyMetrics() {
     if (!currentUser) return false;
     return currentUser.name === 'Павел' || currentUser.name === 'Дарья';
 }
 
-// Check if current user can input monthly metrics (Venera only)
 export function canInputMonthlyMetrics() {
     if (!currentUser) return false;
     return currentUser.name === 'Венера';
 }
 
-// Check if current user can evaluate engagement
 export function canEvaluate() {
     if (!currentUser) return false;
     return currentUser.canEvaluate === true;
 }
 
-// Check if current user can self-evaluate
 export function canSelfEvaluate() {
     if (!currentUser) return false;
     return currentUser.canSelfEvaluate === true;
