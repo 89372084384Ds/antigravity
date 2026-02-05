@@ -156,6 +156,8 @@ export function createEngagementChart(canvasId, weeklyData, users) {
         label: user.name,
         data: sortedWeeks.map(week => {
             const summary = weeklyData[week];
+            if (!Array.isArray(summary)) summary = [];
+
             const userSummary = summary.find(s => s.userId === user.id);
             return userSummary ? userSummary.averageRating : null;
         }),
