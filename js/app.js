@@ -38,7 +38,7 @@ async function renderPage(route) {
 
     // Render page
     const page = pages[route] || pages.login;
-    aapp.innerHTML = await page.render();
+    app.innerHTML = await page.render();
     await page.init();
 
 
