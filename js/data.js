@@ -8,6 +8,7 @@ import {
     getDocs,
     query,
     where,
+    orderBy,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -143,4 +144,141 @@ export function getWeeksList(count = 12) {
         weeks.push(monday.toISOString().split("T")[0]);
     }
     return weeks;
+}
+// =======================
+// Monthly helpers (нужно для dashboard/monthly)
+// =======================
+export function formatMonth(monthString) {
+    const [year, month] = monthString.split("-");
+    const date = new Date(Number(year), Number(month) - 1, 1);
+    return date.toLocaleDateString("ru-RU", { year: "numeric", month: "long" });
+}
+
+// =======================
+// Weekly Metrics (Firebase)
+// =======================
+const WEEKLY_COLLECTION = "weeklyMetrics";
+
+export async function getWeeklyMetrics() {
+    const snap = await getDocs(collection(db, WEEKLY_COLLECTION));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function getWeeklyMetricByDate(weekStartDate) {
+    const ref = doc(db, WEEKLY_COLLECTION, String(weekStartDate));
+    const snap = await getDoc(ref);
+    return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+export async function saveWeeklyMetric(metric) {
+    // Документ = неделя (чтобы не плодить дубли)
+    const id = String(metric.weekStartDate);
+    const ref = doc(db, WEEKLY_COLLECTION, id);
+
+    await setDoc(ref, { ...metric, updatedAt: serverTimestamp() }, { merge: true });
+    return { ...metric, id };
+}
+
+// =======================
+// Monthly Metrics (Firebase)
+// =======================
+const MONTHLY_COLLECTION = "monthlyMetrics";
+
+export async function getMonthlyMetrics() {
+    const snap = await getDocs(collection(db, MONTHLY_COLLECTION));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function getMonthlyMetricByDate(monthDate) {
+    const ref = doc(db, MONTHLY_COLLECTION, String(monthDate));
+    const snap = await getDoc(ref);
+    return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+export async function saveMonthlyMetric(metric) {
+    // авто-поля, как было у тебя раньше
+    if (metric.tonsCount && metric.dealsCount && Number(metric.dealsCount) > 0) {
+        metric.tonsPerDeal = Number((metric.tonsCount / metric.dealsCount).toFixed(2));
+    }
+    if (metric.mp && metric.dealsCount && Number(metric.dealsCount) > 0) {
+        metric.mpPerDeal = Number((metric.mp / metric.dealsCount).toFixed(2));
+    }
+
+    const id = String(metric.monthDate);
+    const ref = doc(db, MONTHLY_COLLECTION, id);
+
+    await setDoc(ref, { ...metric, updatedAt: serverTimestamp() }, { merge: true });
+    return { ...metric, id };
+}
+
+// =======================
+// Export data (для statistics.js)
+// =======================
+export async function exportData() {
+    // users у тебя, скорее всего, const USERS = [...]
+    // если users хранятся иначе — скажи, но сейчас вернём хотя бы текущие
+    let users = [];
+    try {
+        // если у тебя есть getUsers() — отлично
+        users = typeof getUsers === "function" ? getUsers() : (typeof USERS !== "undefined" ? USERS : []);
+    } catch (e) {
+        users = (typeof USERS !== "undefined" ? USERS : []);
+    }
+
+    const weeklyMetrics = await getWeeklyMetrics();
+    const monthlyMetrics = await getMonthlyMetrics();
+
+    // engagementRatings — у тебя уже есть функция getEngagementRatings()?
+    // если нет — просто выгрузим коллекцию напрямую:
+    let engagementRatings = [];
+    try {
+        if (typeof getEngagementRatings === "function") {
+            engagementRatings = await getEngagementRatings();
+        } else {
+            const snap = await getDocs(collection(db, "engagementRatings"));
+            engagementRatings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+    } catch (e) {
+        engagementRatings = [];
+    }
+
+    return {
+        users,
+        weeklyMetrics,
+        monthlyMetrics,
+        engagementRatings,
+        exportDate: new Date().toISOString()
+    };
+}
+// ===== ещё утилиты (их обычно импортируют dashboard/monthly/statistics) =====
+export function getCurrentMonth() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function getMonthsList(count = 12) {
+    const months = [];
+    const now = new Date();
+
+    for (let i = 0; i < count; i++) {
+        const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push(`${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}`);
+    }
+    return months;
+}
+
+// Раньше было для localStorage. Сейчас просто "пустышка", чтобы импорты не падали.
+export function initializeData() {
+    // Firebase-версия: ничего не делаем
+}
+
+// Полная очистка базы — опасно. Делаем безопасную "пустышку", чтобы сайт не падал.
+export async function clearAllData() {
+    console.warn("clearAllData отключена (Firebase).");
+}
+
+// Иногда статистика/страницы ожидают эту функцию
+export async function getEngagementRatings() {
+    const snap = await getDocs(collection(db, ENGAGEMENT_COLLECTION));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
