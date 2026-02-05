@@ -1,8 +1,10 @@
+// js/app.js
 // Main Application Entry Point
 
 import { initializeData } from './data.js';
 import { initAuth, getCurrentUser, logout, isLoggedIn } from './auth.js';
 import { initRouter, navigate, updateActiveNavLink } from './router.js';
+
 import { renderLoginPage, initLoginPage } from './pages/login.js';
 import { renderDashboardPage, initDashboardPage } from './pages/dashboard.js';
 import { renderWeeklyPage, initWeeklyPage } from './pages/weekly.js';
@@ -17,59 +19,68 @@ const pages = {
     weekly: { render: renderWeeklyPage, init: initWeeklyPage },
     monthly: { render: renderMonthlyPage, init: initMonthlyPage },
     engagement: { render: renderEngagementPage, init: initEngagementPage },
-    statistics: { render: renderStatisticsPage, init: initStatisticsPage }
+    statistics: { render: renderStatisticsPage, init: initStatisticsPage },
 };
 
-// Render current page
 async function renderPage(route) {
-
-    const app = document.getElementById('app');
+    const appEl = document.getElementById('app');
     const navbar = document.getElementById('navbar');
     const currentUserSpan = document.getElementById('currentUser');
 
-    // Show/hide navbar based on login status
-    if (isLoggedIn() && route !== 'login') {
-        navbar.classList.remove('hidden');
-        const user = getCurrentUser();
-        currentUserSpan.textContent = user.name;
-    } else {
-        navbar.classList.add('hidden');
+    try {
+        // Показать/скрыть меню
+        if (isLoggedIn() && route !== 'login') {
+            navbar.classList.remove('hidden');
+            const user = getCurrentUser();
+            currentUserSpan.textContent = user ? user.name : '';
+        } else {
+            navbar.classList.add('hidden');
+            currentUserSpan.textContent = '';
+        }
+
+        const page = pages[route] || pages.login;
+
+        // ВАЖНО: render() теперь может быть async → await
+        const html = await page.render();
+        appEl.innerHTML = html;
+
+        // init() тоже может быть async → await
+        if (page.init) await page.init();
+
+        updateActiveNavLink();
+    } catch (err) {
+        console.error('Render error:', err);
+        appEl.innerHTML = `
+      <div class="card">
+        <h2 class="card-title">Ошибка</h2>
+        <p class="text-muted">Открой Console (F12) и пришли ошибку.</p>
+        <pre style="white-space: pre-wrap;">${String(err?.stack || err)}</pre>
+      </div>
+    `;
     }
-
-    // Render page
-    const page = pages[route] || pages.login;
-    app.innerHTML = await page.render();
-    await page.init();
-
-
-    // Update active nav link
-    updateActiveNavLink();
 }
 
-// Initialize app
 function init() {
-    // Initialize data and auth
-    initializeData();
+    initializeData(); // теперь "пустышка" — ок
     initAuth();
 
-    // Setup logout button
+    // logout
     const logoutBtn = document.getElementById('logoutBtn');
-    logoutBtn.addEventListener('click', () => {
-        logout();
-        navigate('login');
-    });
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            logout();
+            navigate('login');
+        });
+    }
 
-    // Listen for route changes
+    // слушаем событие от router.js
     window.addEventListener('routechange', async (e) => {
         await renderPage(e.detail.route);
     });
 
-
-    // Initialize router
-    initRouter();
+    initRouter(); // сам вызовет navigate(initialRoute)
 }
 
-// Start app when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {

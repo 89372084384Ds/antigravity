@@ -21,9 +21,9 @@ export async function renderEngagementPage() {
     const canRate = canEvaluate();
     const users = getUsers();
     const currentWeek = getCurrentWeekStart();
-    const ratings = getRatingsByWeek(currentWeek);
+    const ratings = await getRatingsByWeek(currentWeek);
     const summary = await getEngagementSummary(currentWeek);
-    const missingRatings = getTotalMissingRatings(currentWeek);
+    const missingRatings = await getTotalMissingRatings(currentWeek);
 
     return `
         <div class="fade-in">
@@ -44,8 +44,8 @@ export async function renderEngagementPage() {
                     <p class="card-subtitle mb-3">Неделя: ${formatDate(currentWeek)}</p>
                     
                     <form id="engagementForm">
-                        <div class="grid grid-2">
-                            ${users.map(evaluatedUser => {
+                        <div class="grid grid-2"
+
         // Skip self-evaluation if user can't self-evaluate
         if (evaluatedUser.id === user.id && !canSelfEvaluate()) {
             return '';
@@ -59,7 +59,7 @@ export async function renderEngagementPage() {
         const isSelf = evaluatedUser.id === user.id;
 
         return `
-                                    <div class="form-group">
+            < div class="form-group" >
                                         <label class="form-label">
                                             ${evaluatedUser.name} ${isSelf ? '(самооценка)' : ''}
                                         </label>
@@ -77,15 +77,16 @@ export async function renderEngagementPage() {
 />
 
 
-                                    </div>
-                                `;
+                                    </div >
+        `;
     }).join('')}
                         </div>
                         
                         <button type="submit" class="btn btn-primary mt-3">Сохранить оценки</button>
                     </form>
                 </div>
-            ` : ''}
+            ` : ''
+}
             
             <div class="card mb-4">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -138,7 +139,7 @@ export async function renderEngagementPage() {
                     <canvas id="engagementChart"></canvas>
                 </div>
             </div>
-        </div>
+        </div >
     `;
 }
 export function initEngagementPage() {
